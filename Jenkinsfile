@@ -1,4 +1,3 @@
-
 pipeline {
     agent {
         label 'todo-agent'
@@ -33,8 +32,8 @@ pipeline {
         stage('Docker Build') {
             steps {
                 sh '''
-                    docker build -t $IMAGE_NAME:$BUILD_NUMBER .
-                    docker image ls $IMAGE_NAME
+                    docker build -t "$IMAGE_NAME:$BUILD_NUMBER" .
+                    docker image ls "$IMAGE_NAME"
                 '''
             }
         }
@@ -60,22 +59,24 @@ pipeline {
                 }
             }
         }
-    }
-stage('Kubernetes Deploy') {
-    steps {
-        sh '''
-            kubectl -n todo-production set image \
-              deployment/todo-app \
-              todo-app=vrundakoli05/todo-app:${BUILD_NUMBER}
 
-            kubectl -n todo-production rollout status \
-              deployment/todo-app --timeout=180s
-        '''
+        stage('Kubernetes Deploy') {
+            steps {
+                sh '''
+                    kubectl -n todo-production set image \
+                        deployment/todo-app \
+                        todo-app="$IMAGE_NAME:$BUILD_NUMBER"
+
+                    kubectl -n todo-production rollout status \
+                        deployment/todo-app --timeout=180s
+                '''
+            }
+        }
     }
-}
+
     post {
         success {
-            echo 'CI pipeline and Docker Hub push successful!'
+            echo 'CI/CD pipeline completed successfully!'
         }
 
         failure {
