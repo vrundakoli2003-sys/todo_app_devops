@@ -61,7 +61,18 @@ pipeline {
             }
         }
     }
+stage('Kubernetes Deploy') {
+    steps {
+        sh '''
+            kubectl -n todo-production set image \
+              deployment/todo-app \
+              todo-app=vrundakoli05/todo-app:${BUILD_NUMBER}
 
+            kubectl -n todo-production rollout status \
+              deployment/todo-app --timeout=180s
+        '''
+    }
+}
     post {
         success {
             echo 'CI pipeline and Docker Hub push successful!'
