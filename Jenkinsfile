@@ -61,18 +61,35 @@ pipeline {
         }
 
         stage('Kubernetes Deploy') {
-            steps {
-                sh '''
-                    kubectl -n todo-production set image \
-                        deployment/todo-app \
-                        todo-app="$IMAGE_NAME:$BUILD_NUMBER"
+    steps {
+        withCredentials([
+            sshUserPrivateKey(
+                credentialsId: 'k8s-deploy-ssh',
+                keyFileVariable: 'SSH_KEY',
+                usernameVariable: 'SSH_USER'
+            )
+        ]) {
+            sh '''
+                set -eu
 
-                    kubectl -n todo-production rollout status \
-                        deployment/todo-app --timeout=180s
-                '''
-            }
+                ssh -i "$SSH_KEY" \
+                    -o BatchMode=yes \
+                    "$SSH_USER@172.31.5.22" \
+                    "kubectl --kubeconfig=/home/k8s-deployer/.kube/config \
+                    -n todo-production set image \
+                    deployment/todo-app \
+                    todo-app=$IMAGE_NAME:$BUILD_NUMBER"
+
+                ssh -i "$SSH_KEY" \
+                    -o BatchMode=yes \
+                    "$SSH_USER@172.31.5.22" \
+                    "kubectl --kubeconfig=/home/k8s-deployer/.kube/config \
+                    -n todo-production rollout status \
+                    deployment/todo-app --timeout=180s"
+            '''
         }
     }
+}
 
     post {
         success {
