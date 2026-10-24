@@ -1,7 +1,5 @@
 pipeline {
-    agent {
-        label 'todo-agent'
-    }
+    agent { label 'todo-agent' }
 
     options {
         timestamps()
@@ -52,7 +50,6 @@ pipeline {
                         echo "$DOCKER_TOKEN" | docker login \
                             --username "$DOCKER_USER" \
                             --password-stdin
-
                         docker push "$IMAGE_NAME:$BUILD_NUMBER"
                         docker logout
                     '''
@@ -61,24 +58,37 @@ pipeline {
         }
 
         stage('Kubernetes Deploy') {
-    steps {
-        withCredentials([
-            sshUserPrivateKey(
-                credentialsId: 'k8s-deploy-ssh',
-                keyFileVariable: 'SSH_KEY',
-                usernameVariable: 'SSH_USER'
-            )
-        ]) {
-            sh '''
-                ssh -i "$SSH_KEY" \
-                    -o IdentitiesOnly=yes \
-                    -o BatchMode=yes \
-                    "$SSH_USER@172.31.5.22" \
-                    "whoami"
-            '''
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'k8s-deploy-ssh',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )
+                ]) {
+                    sh '''
+                        set -eu
+
+                        ssh -i "$SSH_KEY" \
+                            -o IdentitiesOnly=yes \
+                            -o BatchMode=yes \
+                            "$SSH_USER@172.31.5.22" \
+                            "kubectl --kubeconfig=/home/k8s-deployer/.kube/config \
+                            -n todo-production set image deployment/todo-app \
+                            todo-app=$IMAGE_NAME:$BUILD_NUMBER"
+
+                        ssh -i "$SSH_KEY" \
+                            -o IdentitiesOnly=yes \
+                            -o BatchMode=yes \
+                            "$SSH_USER@172.31.5.22" \
+                            "kubectl --kubeconfig=/home/k8s-deployer/.kube/config \
+                            -n todo-production rollout status \
+                            deployment/todo-app --timeout=180s"
+                    '''
+                }
+            }
         }
     }
-}
 
     post {
         success {
