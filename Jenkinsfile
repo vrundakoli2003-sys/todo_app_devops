@@ -9,7 +9,7 @@ pipeline {
     }
 
     environment {
-        IMAGE_NAME = 'aaditya4512/todo-app'
+        IMAGE_NAME = 'vrundakoli05/todo-app'
     }
 
     stages {
